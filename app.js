@@ -68,7 +68,7 @@ async function syncAllPending() {
   saveArr(LS_KEYS.kasus, state.kasus);
   saveArr(LS_KEYS.bencana, state.bencana);
   if (btn) { btn.disabled = false; btn.textContent = "Sinkronkan ke Google Sheets"; }
-  renderRekap();
+  await refreshDataAndRender(renderRekap);
   toast(count > 0 ? `${count} data berhasil disinkronkan ke Google Sheets.` : "Semua data sudah tersinkron.");
 }
 
@@ -79,6 +79,55 @@ function toast(msg, isWarn) {
   setTimeout(() => t.classList.remove("show"), 3200);
 }
 
+/* ---------------------------- AMBIL DATA GABUNGAN DARI GOOGLE SHEETS ---------------------------- */
+// Sheets adalah "sumber kebenaran bersama" agar semua perangkat melihat rekapan yang sama.
+// Data lokal yang BELUM sempat terkirim (misal saat offline) tetap digabungkan supaya tidak hilang dari tampilan.
+async function fetchRemoteData() {
+  const url = state.settings.sheetUrl;
+  if (!url) return { ok: false, reason: "no-url" };
+  try {
+    const sep = url.includes("?") ? "&" : "?";
+    const res = await fetch(url + sep + "action=list");
+    const data = await res.json();
+    if (!data.ok) return { ok: false, reason: data.error || "unknown" };
+
+    const remoteKasus = (data.kasus || []).map(r => Object.assign({}, r, { _synced: true }));
+    const remoteBencana = (data.bencana || []).map(r => Object.assign({}, r, { _synced: true }));
+    const remoteKasusIds = new Set(remoteKasus.map(r => r.id));
+    const remoteBencanaIds = new Set(remoteBencana.map(r => r.id));
+
+    // simpan data lokal yang belum tersinkron (mis. dibuat saat offline) agar tidak hilang dari layar
+    const localPendingKasus = loadArr(LS_KEYS.kasus).filter(r => !r._synced && !remoteKasusIds.has(r.id));
+    const localPendingBencana = loadArr(LS_KEYS.bencana).filter(r => !r._synced && !remoteBencanaIds.has(r.id));
+
+    state.kasus = localPendingKasus.concat(remoteKasus).sort((a, b) => (b.waktu_input || "").localeCompare(a.waktu_input || ""));
+    state.bencana = localPendingBencana.concat(remoteBencana).sort((a, b) => (b.waktu_input || "").localeCompare(a.waktu_input || ""));
+
+    // perbarui juga antrian lokal: entri yang sudah ada di server ditandai tersinkron
+    const localKasus = loadArr(LS_KEYS.kasus).map(r => remoteKasusIds.has(r.id) ? Object.assign({}, r, { _synced: true }) : r);
+    const localBencana = loadArr(LS_KEYS.bencana).map(r => remoteBencanaIds.has(r.id) ? Object.assign({}, r, { _synced: true }) : r);
+    saveArr(LS_KEYS.kasus, localKasus);
+    saveArr(LS_KEYS.bencana, localBencana);
+
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, reason: e.message };
+  }
+}
+
+async function refreshDataAndRender(targetRenderFn) {
+  if (!state.settings.sheetUrl) {
+    // belum tersambung ke Sheets: tampilkan data lokal perangkat ini saja
+    state.kasus = loadArr(LS_KEYS.kasus);
+    state.bencana = loadArr(LS_KEYS.bencana);
+    targetRenderFn();
+    return;
+  }
+  const r = await fetchRemoteData();
+  targetRenderFn();
+  if (!r.ok) toast("Gagal memuat data gabungan dari Google Sheets (" + r.reason + "). Menampilkan data lokal.", true);
+}
+
 /* ---------------------------- TAB NAVIGATION ---------------------------- */
 function showTab(tab) {
   state.activeTab = tab;
@@ -86,8 +135,8 @@ function showTab(tab) {
   document.querySelectorAll(".navbtn").forEach(b => b.classList.remove("active"));
   document.getElementById("panel-" + tab).classList.add("active");
   document.querySelector(`.navbtn[data-tab="${tab}"]`).classList.add("active");
-  if (tab === "dashboard") renderDashboard();
-  if (tab === "rekap") renderRekap();
+  if (tab === "dashboard") refreshDataAndRender(renderDashboard);
+  if (tab === "rekap") refreshDataAndRender(renderRekap);
   if (tab === "kelola-penyakit") renderKelolaPenyakit();
 }
 
@@ -437,6 +486,7 @@ window.addEventListener("DOMContentLoaded", () => {
   document.getElementById("desaKasus").addEventListener("change", () => handleDesaChange("desaKasus", "desaKasusLainnya"));
   document.getElementById("desaBencana").addEventListener("change", () => handleDesaChange("desaBencana", "desaBencanaLainnya"));
   document.getElementById("btnSyncAll").addEventListener("click", syncAllPending);
+  document.getElementById("btnRefreshData").addEventListener("click", () => refreshDataAndRender(renderRekap));
   document.getElementById("btnExportKasus").addEventListener("click", () => exportCSV("kasus"));
   document.getElementById("btnExportBencana").addEventListener("click", () => exportCSV("bencana"));
   document.querySelectorAll(".navbtn").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));

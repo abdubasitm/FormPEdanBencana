@@ -2,12 +2,21 @@
    APP LOGIC — SKDR & Pelaporan Bencana Puskesmas Sale
    ========================================================================= */
 
+// Isi URL Web App Google Apps Script Anda di sini (satu kali, untuk semua unit pelapor).
+// Contoh: "https://script.google.com/macros/s/AKfycbXXXXXXXXXXXX/exec"
+const DEFAULT_SHEET_URL = "https://script.google.com/macros/s/AKfycbweaeSDvM2-QG5Mb1o0vNkEuh2tc8Gv61iNuaImzu1Wuvi4fsK1VwXIxRwt426d76sF/exec";
+
 const LS_KEYS = { kasus: "skdr_kasus_v1", bencana: "skdr_bencana_v1", settings: "skdr_settings_v1", penyakit: "skdr_penyakit_v1" };
 
 function loadArr(key) { try { return JSON.parse(localStorage.getItem(key)) || []; } catch (e) { return []; } }
 function saveArr(key, arr) { localStorage.setItem(key, JSON.stringify(arr)); }
 function loadSettings() {
-  return Object.assign({ sheetUrl: "", unitDefault: "", desaDefault: "" }, JSON.parse(localStorage.getItem(LS_KEYS.settings) || "{}"));
+  const saved = JSON.parse(localStorage.getItem(LS_KEYS.settings) || "{}");
+  const defaults = { sheetUrl: DEFAULT_SHEET_URL, unitDefault: "", desaDefault: "" };
+  const merged = Object.assign({}, defaults, saved);
+  // Jika belum pernah diatur manual di perangkat ini, pakai URL bawaan dari kode.
+  if (!saved.sheetUrl) merged.sheetUrl = DEFAULT_SHEET_URL;
+  return merged;
 }
 function saveSettings(s) { localStorage.setItem(LS_KEYS.settings, JSON.stringify(s)); }
 function getPenyakitList() {
@@ -306,7 +315,8 @@ function submitBencana(ev) {
 
 /* ---------------------------- PENGATURAN ---------------------------- */
 function loadSettingsForm() {
-  document.getElementById("inputSheetUrl").value = state.settings.sheetUrl || "";
+  const isUsingDefault = state.settings.sheetUrl === DEFAULT_SHEET_URL;
+  document.getElementById("inputSheetUrl").value = isUsingDefault ? "" : (state.settings.sheetUrl || "");
   fillSelect("inputUnitDefault", UNIT_PELAPOR_LIST, "(tidak ada default)");
   if (state.settings.unitDefault) document.getElementById("inputUnitDefault").value = state.settings.unitDefault;
 }

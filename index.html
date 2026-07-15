@@ -301,15 +301,17 @@
   <section id="panel-pengaturan" class="tab-panel">
     <div class="card">
       <h2>Sinkronisasi ke Google Sheets</h2>
-      <p class="sub">Aplikasi ini tersimpan otomatis di perangkat (offline-ready), dan akan mengirim salinan tiap laporan ke Google Sheets melalui Google Apps Script.</p>
+      <p class="sub">URL Google Apps Script sudah tertanam otomatis di dalam kode aplikasi (diatur oleh admin),
+      sehingga setiap perangkat yang membuka website ini akan langsung tersambung tanpa perlu mengisi apa pun di sini.
+      Kolom di bawah hanya perlu diisi jika Anda ingin mengarahkan perangkat ini ke Google Sheets yang berbeda.</p>
       <ol class="setup-steps">
         <li>Buka Google Sheets baru, lalu buka menu <strong>Ekstensi &gt; Apps Script</strong>.</li>
         <li>Hapus isi editor, lalu tempel kode dari berkas <code>GoogleAppsScript.gs</code> yang disertakan.</li>
         <li>Klik <strong>Deploy &gt; New deployment</strong>, pilih tipe <strong>Web app</strong>, atur akses "Anyone", lalu klik Deploy.</li>
-        <li>Salin URL Web App yang muncul, lalu tempelkan ke kolom di bawah ini.</li>
+        <li>Salin URL Web App yang muncul, lalu tempelkan ke konstanta <code>DEFAULT_SHEET_URL</code> di baris paling atas berkas <code>app.js</code>, simpan, dan unggah ulang ke GitHub. Setelah ini semua perangkat otomatis tersambung — tidak perlu isi manual satu-satu.</li>
       </ol>
       <form id="formSettings">
-        <label class="field"><span>URL Google Apps Script (Web App)</span><input type="text" id="inputSheetUrl" placeholder="https://script.google.com/macros/s/xxx/exec"></label>
+        <label class="field"><span>URL Google Apps Script (opsional — kosongkan untuk pakai bawaan)</span><input type="text" id="inputSheetUrl" placeholder="https://script.google.com/macros/s/xxx/exec"></label>
         <label class="field"><span>Unit Pelapor Default (opsional)</span><select id="inputUnitDefault"></select></label>
         <button type="submit" class="btn">Simpan Pengaturan</button>
       </form>

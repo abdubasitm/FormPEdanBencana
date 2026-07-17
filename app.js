@@ -4,7 +4,7 @@
 
 // Isi URL Web App Google Apps Script Anda di sini (satu kali, untuk semua unit pelapor).
 // Contoh: "https://script.google.com/macros/s/AKfycbXXXXXXXXXXXX/exec"
-const DEFAULT_SHEET_URL = "https://script.google.com/macros/s/AKfycbweaeSDvM2-QG5Mb1o0vNkEuh2tc8Gv61iNuaImzu1Wuvi4fsK1VwXIxRwt426d76sF/exec";
+const DEFAULT_SHEET_URL = "TEMPEL_URL_GOOGLE_APPS_SCRIPT_ANDA_DI_SINI";
 
 const LS_KEYS = { kasus: "skdr_kasus_v1", bencana: "skdr_bencana_v1", settings: "skdr_settings_v1", penyakit: "skdr_penyakit_v1" };
 
@@ -90,15 +90,30 @@ function toast(msg, isWarn) {
 
 /* ---------------------------- AMBIL DATA GABUNGAN DARI GOOGLE SHEETS ---------------------------- */
 // Sheets adalah "sumber kebenaran bersama" agar semua perangkat melihat rekapan yang sama.
-// Data lokal yang BELUM sempat terkirim (misal saat offline) tetap digabungkan supaya tidak hilang dari tampilan.
+// Memakai teknik JSONP (bukan fetch biasa) karena permintaan GET ke Google Apps Script
+// sering terhambat CORS saat dibaca lewat fetch() langsung dari browser.
+function jsonpRequest(url, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const cbName = "waspadaneCb_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
+    const script = document.createElement("script");
+    let settled = false;
+    function cleanup() { delete window[cbName]; script.remove(); }
+    window[cbName] = (data) => { settled = true; cleanup(); resolve(data); };
+    script.onerror = () => { if (!settled) { cleanup(); reject(new Error("Gagal memuat data dari Google Sheets (periksa URL Apps Script).")); } };
+    const sep = url.includes("?") ? "&" : "?";
+    script.src = url + sep + "callback=" + cbName;
+    document.body.appendChild(script);
+    setTimeout(() => { if (!settled) { cleanup(); reject(new Error("Waktu tunggu habis saat memuat data dari Google Sheets.")); } }, timeoutMs || 15000);
+  });
+}
+
 async function fetchRemoteData() {
   const url = state.settings.sheetUrl;
-  if (!url) return { ok: false, reason: "no-url" };
+  if (!url || url.includes("TEMPEL_URL_GOOGLE_APPS_SCRIPT")) return { ok: false, reason: "URL Google Apps Script belum diisi" };
   try {
     const sep = url.includes("?") ? "&" : "?";
-    const res = await fetch(url + sep + "action=list");
-    const data = await res.json();
-    if (!data.ok) return { ok: false, reason: data.error || "unknown" };
+    const data = await jsonpRequest(url + sep + "action=list");
+    if (!data || !data.ok) return { ok: false, reason: (data && data.error) || "respons tidak valid" };
 
     const remoteKasus = (data.kasus || []).map(r => Object.assign({}, r, { _synced: true }));
     const remoteBencana = (data.bencana || []).map(r => Object.assign({}, r, { _synced: true }));
@@ -171,6 +186,9 @@ function initBasicSelects() {
   fillSelect("statusKasus", STATUS_KASUS_LIST, "Pilih status");
   fillSelect("jenisKelamin", JENIS_KELAMIN_LIST, "Pilih jenis kelamin");
   fillSelect("jenisBencana", JENIS_BENCANA_LIST, "Pilih jenis kejadian");
+  fillSelect("umurPasienSatuan", UMUR_SATUAN_LIST, null);
+  fillSelect("riwayatImunisasi", RIWAYAT_IMUNISASI_LIST, "Pilih riwayat imunisasi");
+  fillSelect("statusSampel", STATUS_SAMPEL_LIST, "Pilih status sampel");
   renderDesaOptions("desaKasus");
   renderDesaOptions("desaBencana");
   renderPenyakitOptions();
@@ -230,6 +248,9 @@ function renderGejalaChecklist() {
     grid.appendChild(label);
   });
   wrap.appendChild(grid);
+
+  const pd3iWrap = document.getElementById("pd3iWrap");
+  pd3iWrap.style.display = (p.kategori === "PD3I") ? "block" : "none";
 }
 
 /* ---------------------------- SUBMIT: LAPORAN KASUS ---------------------------- */
@@ -253,12 +274,19 @@ function submitKasus(ev) {
     unit_pelapor: document.getElementById("unitPelapor").value,
     desa: desaFinal,
     nama_pasien: document.getElementById("namaPasien").value.trim(),
-    umur_tahun: document.getElementById("umurPasien").value,
+    umur: document.getElementById("umurPasien").value,
+    umur_satuan: document.getElementById("umurPasienSatuan").value || "Tahun",
     jenis_kelamin: document.getElementById("jenisKelamin").value,
     alamat_detail: document.getElementById("alamatDetail").value.trim(),
     kode_penyakit: kode,
     nama_penyakit: p ? p.nama : kode,
     gejala: gejalaChecked.join("; "),
+    riwayat_imunisasi: (p && p.kategori === "PD3I") ? document.getElementById("riwayatImunisasi").value : "",
+    jumlah_dosis_imunisasi: (p && p.kategori === "PD3I") ? document.getElementById("jumlahDosisImunisasi").value : "",
+    status_sampel: (p && p.kategori === "PD3I") ? document.getElementById("statusSampel").value : "",
+    jenis_sampel: (p && p.kategori === "PD3I") ? document.getElementById("jenisSampel").value.trim() : "",
+    tanggal_sampel: (p && p.kategori === "PD3I") ? document.getElementById("tanggalSampel").value : "",
+    keterangan_sampel: (p && p.kategori === "PD3I") ? document.getElementById("keteranganSampel").value.trim() : "",
     status_kasus: document.getElementById("statusKasus").value,
     keterangan: document.getElementById("keteranganKasus").value.trim(),
     waktu_input: new Date().toISOString()
@@ -271,6 +299,7 @@ function submitKasus(ev) {
   document.getElementById("desaKasusLainnya").style.display = "none";
   renderPenyakitOptions();
   document.getElementById("gejalaWrap").innerHTML = `<p class="hint">Pilih penyakit terlebih dahulu untuk menampilkan checklist gejala.</p>`;
+  document.getElementById("pd3iWrap").style.display = "none";
   syncOneRow("kasus", row).then(r => {
     if (r.ok) { row._synced = true; saveArr(LS_KEYS.kasus, state.kasus); renderRekap(); }
   });
@@ -358,7 +387,7 @@ function renderRekap() {
       <td>${r.desa}</td>
       <td><span class="badge">${r.kode_penyakit}</span> ${r.nama_penyakit}</td>
       <td>${r.nama_pasien || "-"}</td>
-      <td>${r.umur_tahun || "-"}</td>
+      <td>${r.umur ? r.umur + " " + (r.umur_satuan || "Tahun") : "-"}</td>
       <td>${r.jenis_kelamin || "-"}</td>
       <td>${r.status_kasus || "-"}</td>
       <td>${r._synced ? '<span class="sync-ok">✓ tersinkron</span>' : '<span class="sync-pending">belum</span>'}</td>
@@ -378,6 +407,13 @@ function renderRekap() {
 
   const pendingCount = state.kasus.filter(r => !r._synced).length + state.bencana.filter(r => !r._synced).length;
   document.getElementById("pendingCount").textContent = pendingCount;
+}
+
+function ageInYears(row) {
+  const raw = row.umur !== undefined ? row.umur : row.umur_tahun; // umur_tahun = kompatibilitas data lama
+  const n = parseFloat(raw);
+  if (isNaN(n)) return null;
+  return row.umur_satuan === "Bulan" ? n / 12 : n;
 }
 
 /* ---------------------------- DASHBOARD / ANALISIS ---------------------------- */
@@ -408,8 +444,8 @@ function renderDashboard() {
   const grupUmur = { "0-4": 0, "5-14": 0, "15-44": 0, "45-64": 0, "65+": 0, "?": 0 };
   const grupGender = { "Laki-laki": 0, "Perempuan": 0 };
   kasus.forEach(k => {
-    const u = parseInt(k.umur_tahun, 10);
-    if (isNaN(u)) grupUmur["?"]++;
+    const u = ageInYears(k);
+    if (u === null) grupUmur["?"]++;
     else if (u <= 4) grupUmur["0-4"]++;
     else if (u <= 14) grupUmur["5-14"]++;
     else if (u <= 44) grupUmur["15-44"]++;

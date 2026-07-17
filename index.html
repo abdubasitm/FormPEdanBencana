@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SKDR &amp; Pelaporan Bencana — Puskesmas Sale</title>
+<title>WASPADANE — Puskesmas Sale</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
@@ -125,10 +125,10 @@
 
 <header class="topbar">
   <div class="brand">
-    <div class="mark">SKDR</div>
+    <div class="mark">WSP</div>
     <div>
-      <h1>Sistem Pelaporan SKDR &amp; Bencana</h1>
-      <p>Puskesmas Sale · Kecamatan Sale · 30 Unit Pelapor</p>
+      <h1>WASPADANE</h1>
+      <p>Wadah Aplikasi Sistem Pelaporan Darurat Ancaman Penyakit &amp; Bencana · Puskesmas Sale, Kec. Sale</p>
     </div>
   </div>
   <div class="pending">Laporan belum sinkron: <b id="pendingCount">0</b></div>
@@ -164,7 +164,13 @@
         </div>
         <div class="grid3">
           <label class="field"><span>Nama Pasien</span><input type="text" id="namaPasien" placeholder="Nama lengkap"></label>
-          <label class="field"><span>Umur (tahun)</span><input type="number" id="umurPasien" min="0" max="120" placeholder="cth. 34"></label>
+          <label class="field">
+            <span>Umur</span>
+            <div style="display:flex;gap:6px;">
+              <input type="number" id="umurPasien" min="0" max="1200" placeholder="cth. 6" style="flex:1;">
+              <select id="umurPasienSatuan" style="flex:0 0 100px;"></select>
+            </div>
+          </label>
           <label class="field"><span>Jenis Kelamin</span><select id="jenisKelamin"></select></label>
         </div>
         <label class="field"><span>Alamat Detail (RT/RW/dusun)</span><input type="text" id="alamatDetail" placeholder="cth. RT 02/RW 01, Dusun Krajan"></label>
@@ -173,6 +179,22 @@
 
         <div class="card" style="background:#FBFDFD;border-style:dashed;" id="gejalaCard">
           <div id="gejalaWrap"><p class="hint">Pilih penyakit terlebih dahulu untuk menampilkan checklist gejala.</p></div>
+        </div>
+
+        <div class="card" style="background:#FBFDFD;border-style:dashed;border-color:var(--amber);display:none;" id="pd3iWrap">
+          <h2 style="font-size:14px;">Data Tambahan Khusus PD3I <span class="kategori">Penyakit Dapat Dicegah Dengan Imunisasi</span></h2>
+          <div class="grid2">
+            <label class="field"><span>Riwayat Imunisasi</span><select id="riwayatImunisasi"></select></label>
+            <label class="field"><span>Jumlah Dosis Diterima (opsional)</span><input type="number" id="jumlahDosisImunisasi" min="0" max="20" placeholder="cth. 3"></label>
+          </div>
+          <div class="grid2">
+            <label class="field"><span>Status Pengambilan Sampel</span><select id="statusSampel"></select></label>
+            <label class="field"><span>Jenis Sampel (opsional)</span><input type="text" id="jenisSampel" placeholder="cth. Serum, swab tenggorok, tinja"></label>
+          </div>
+          <div class="grid2">
+            <label class="field"><span>Tanggal Pengambilan Sampel</span><input type="date" id="tanggalSampel"></label>
+            <label class="field"><span>Keterangan Sampel (opsional)</span><input type="text" id="keteranganSampel" placeholder="cth. Dikirim ke Labkesda tanggal ..."></label>
+          </div>
         </div>
 
         <div class="grid2" style="margin-top:14px;">

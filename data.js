@@ -109,3 +109,13 @@ const JENIS_BENCANA_LIST = [
 
 const STATUS_KASUS_LIST = ["Suspek", "Probable", "Konfirmasi", "Discarded/Bukan Kasus"];
 const JENIS_KELAMIN_LIST = ["Laki-laki", "Perempuan"];
+const UMUR_SATUAN_LIST = ["Tahun", "Bulan"];
+
+// Khusus form PD3I (Penyakit Dapat Dicegah Dengan Imunisasi): Campak, Difteri,
+// Pertusis, AFP, Tetanus Neonatorum, Tetanus — ditandai lewat kategori "PD3I" di atas.
+const RIWAYAT_IMUNISASI_LIST = [
+  "Lengkap sesuai usia", "Tidak lengkap", "Belum pernah imunisasi", "Tidak diketahui/tidak ada data"
+];
+const STATUS_SAMPEL_LIST = [
+  "Sudah diambil", "Belum diambil", "Tidak diperlukan", "Menunggu hasil lab"
+];

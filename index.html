@@ -520,8 +520,8 @@ const UNIT_PELAPOR_LIST = [
   "BPM Emy Widyaastuti", "BPM Endang", "BPM Sulistyaningrum", "BPM Kartini",
   "BPM Rina Wariyanti", "PKD Bancang", "BPM Lailatul Lutfia", "BPM Anita Dwi",
   "BPM Sri Damayanti", "BPM Nurmini", "BPM Siti Patonah", "PKD Joho",
-  "BPM Lilis S", "DPM dr. Erra Irhamni", "DPM dr. Anton", "drg. Lutfia",
-  "Laporan RS/Masyarakat"
+  "BPM Lilis S", "DPM dr. Erra Irhamni", "DPM dr. Anton", "DPM dr. Lutfia",
+  "Laporan RS/Kader/Masyarakat"
 ];
 
 // 24 penyakit potensial KLB/wabah SKDR + gejala kunci (checklist) per penyakit.
@@ -692,8 +692,8 @@ const SKDR_FASYANKES = [
   { nama:"BPM Lilis S",              jenis:"BPM" },
   { nama:"DPM dr. Erra Irhamni",     jenis:"DPM" },
   { nama:"DPM dr. Anton",            jenis:"DPM" },
-  { nama:"drg. Lutfia",              jenis:"DPM" },
-  { nama:"Laporan RS/Masyarakat",    jenis:"Masyarakat" },
+  { nama:"DPM dr. Lutfia",           Jenis:"DPM" },
+  { nama:"Laporan RS/Kader/Masyarakat",    jenis:"Masyarakat" },
 ];
 
 const SKDR_JENIS_COLOR = {
@@ -718,7 +718,15 @@ function skdrGetSheetUrl() {
 
 // ---- localStorage ----
 function skdrLoad() {
-  try { skdrDb      = JSON.parse(localStorage.getItem(SKDR_LS) || '{}'); } catch(e) { skdrDb = {}; }
+  try {
+    skdrDb = JSON.parse(localStorage.getItem(SKDR_LS) || '{}');
+    // Normalize field nihil: string "Tidak"/"false"/"Ya"/"true" → boolean
+    Object.values(skdrDb).forEach(r => {
+      if (typeof r.nihil === 'string') {
+        r.nihil = (r.nihil === 'Ya' || r.nihil === 'true');
+      }
+    });
+  } catch(e) { skdrDb = {}; }
   try { skdrPending = JSON.parse(localStorage.getItem(SKDR_PENDING) || '[]'); } catch(e) { skdrPending = []; }
 }
 function skdrSave() {
@@ -1028,7 +1036,14 @@ async function skdrPullFromSheets() {
   // Gabungkan: data dari Sheets menimpa localStorage untuk key yang sama
   let count = 0;
   data.forEach(rec => {
-    if (rec.key) { skdrDb[rec.key] = rec; count++; }
+    if (rec.key) {
+      // Normalize nihil dari Sheets (bisa string "Ya"/"Tidak")
+      if (typeof rec.nihil === 'string') {
+        rec.nihil = (rec.nihil === 'Ya' || rec.nihil === 'true');
+      }
+      skdrDb[rec.key] = rec;
+      count++;
+    }
   });
   skdrSave();
   skdrRenderRekap();
@@ -1602,8 +1617,14 @@ async function fetchRemoteData() {
   if (!url || url.includes("TEMPEL_URL_GOOGLE_APPS_SCRIPT")) return { ok: false, reason: "URL Google Apps Script belum diisi" };
   try {
     const sep = url.includes("?") ? "&" : "?";
-    const data = await jsonpRequest(url + sep + "action=list");
-    if (!data || !data.ok) return { ok: false, reason: (data && data.error) || "respons tidak valid" };
+    // GAS GET: harus follow redirect dan tidak perlu credentials
+    const res  = await fetch(url + sep + "action=allGet", {
+      method: "GET",
+      redirect: "follow"
+    });
+    if (!res.ok) return { ok: false, reason: "HTTP " + res.status };
+    const data = await res.json();
+    if (!data || data.status !== "ok") return { ok: false, reason: (data && data.message) || "respons tidak valid" };
 
     const remoteKasus = (data.kasus || []).map(r => Object.assign({}, r, { _synced: true }));
     const remoteBencana = (data.bencana || []).map(r => Object.assign({}, r, { _synced: true }));

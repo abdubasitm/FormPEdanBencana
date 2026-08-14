@@ -732,10 +732,10 @@ async function skdrSyncToSheets(record) {
   const url = skdrGetSheetUrl();
   if (!url) return { ok: false, reason: 'URL belum diset' };
   try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'skdrSimpan', record })
+    // GAS hanya bisa baca text/plain — kirim sebagai payload GET untuk hindari CORS preflight
+    const payload = encodeURIComponent(JSON.stringify({ action: 'skdrSimpan', record }));
+    const res = await fetch(url + '?payload=' + payload, {
+      method: 'GET',
     });
     const json = await res.json();
     return { ok: json.status === 'ok', reason: json.message || '' };
@@ -1400,7 +1400,7 @@ async function skdrTestConnection() {
   if (!url) { toast('Isi URL terlebih dahulu.', true); return; }
   toast('Menguji koneksi...');
   try {
-    const res  = await fetch(url + '?action=ping');
+    const res  = await fetch(url + '?action=ping&payload=' + encodeURIComponent('{}'));
     const json = await res.json();
     if (json.status === 'ok') toast('✓ Koneksi berhasil! Google Sheets terhubung.');
     else toast('Respons tidak dikenali: ' + JSON.stringify(json), true);
@@ -1529,10 +1529,10 @@ async function syncOneRow(type, row) {
       keterangan        : row.keterangan,
       waktuInput        : row.waktu_input
     };
-    const res  = await fetch(url, {
-      method  : "POST",
-      headers : { "Content-Type": "application/json" },
-      body    : JSON.stringify({ action, record })
+    // GAS hanya bisa baca text/plain — kirim sebagai payload GET untuk hindari CORS preflight
+    const payload = encodeURIComponent(JSON.stringify({ action, record }));
+    const res  = await fetch(url + '?payload=' + payload, {
+      method  : "GET",
     });
     const json = await res.json();
     return { ok: json.status === "ok", reason: json.message || "" };

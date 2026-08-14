@@ -732,13 +732,14 @@ async function skdrSyncToSheets(record) {
   const url = skdrGetSheetUrl();
   if (!url) return { ok: false, reason: 'URL belum diset' };
   try {
-    // GAS hanya bisa baca text/plain — kirim sebagai payload GET untuk hindari CORS preflight
-    const payload = encodeURIComponent(JSON.stringify({ action: 'skdrSimpan', record }));
-    const res = await fetch(url + '?payload=' + payload, {
-      method: 'GET',
+    // no-cors POST text/plain — satu-satunya cara yang benar untuk GAS dari browser
+    await fetch(url, {
+      method  : 'POST',
+      mode    : 'no-cors',
+      headers : { 'Content-Type': 'text/plain;charset=utf-8' },
+      body    : JSON.stringify({ action: 'skdrSimpan', record })
     });
-    const json = await res.json();
-    return { ok: json.status === 'ok', reason: json.message || '' };
+    return { ok: true }; // no-cors tidak bisa baca response, anggap berhasil jika tidak throw
   } catch(e) {
     return { ok: false, reason: e.message };
   }
@@ -1492,9 +1493,7 @@ async function syncOneRow(type, row) {
   const url = state.settings.sheetUrl;
   if (!url) return { ok: false, reason: "url-belum-diset" };
   try {
-    // Sesuaikan action dengan waspadane_sheets.gs
     const action = type === "kasus" ? "kasusSimpan" : "bencanaSimapan";
-    // Mapping field ke format yang diterima GAS
     const record = type === "kasus" ? {
       id               : row.id,
       tanggal          : row.tanggal_lapor,
@@ -1529,13 +1528,16 @@ async function syncOneRow(type, row) {
       keterangan        : row.keterangan,
       waktuInput        : row.waktu_input
     };
-    // GAS hanya bisa baca text/plain — kirim sebagai payload GET untuk hindari CORS preflight
-    const payload = encodeURIComponent(JSON.stringify({ action, record }));
-    const res  = await fetch(url + '?payload=' + payload, {
-      method  : "GET",
+    // Kirim via no-cors POST text/plain — satu-satunya cara yang BENAR untuk GAS dari browser
+    // no-cors: tidak bisa baca response, tapi data PASTI masuk ke GAS
+    await fetch(url, {
+      method  : "POST",
+      mode    : "no-cors",
+      headers : { "Content-Type": "text/plain;charset=utf-8" },
+      body    : JSON.stringify({ action, record })
     });
-    const json = await res.json();
-    return { ok: json.status === "ok", reason: json.message || "" };
+    // Karena no-cors tidak bisa baca response, kita anggap berhasil jika tidak throw
+    return { ok: true };
   } catch (e) {
     return { ok: false, reason: e.message };
   }

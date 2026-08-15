@@ -520,8 +520,8 @@ const UNIT_PELAPOR_LIST = [
   "BPM Emy Widyaastuti", "BPM Endang", "BPM Sulistyaningrum", "BPM Kartini",
   "BPM Rina Wariyanti", "PKD Bancang", "BPM Lailatul Lutfia", "BPM Anita Dwi",
   "BPM Sri Damayanti", "BPM Nurmini", "BPM Siti Patonah", "PKD Joho",
-  "BPM Lilis S", "DPM dr. Erra Irhamni", "DPM dr. Anton", "DPM dr. Lutfia",
-  "Laporan RS/Kader/Masyarakat"
+  "BPM Lilis S", "DPM dr. Erra Irhamni", "DPM dr. Anton", "drg. Lutfia",
+  "Laporan RS/Masyarakat"
 ];
 
 // 24 penyakit potensial KLB/wabah SKDR + gejala kunci (checklist) per penyakit.
@@ -692,8 +692,8 @@ const SKDR_FASYANKES = [
   { nama:"BPM Lilis S",              jenis:"BPM" },
   { nama:"DPM dr. Erra Irhamni",     jenis:"DPM" },
   { nama:"DPM dr. Anton",            jenis:"DPM" },
-  { nama:"DPM dr. Lutfia",           Jenis:"DPM" },
-  { nama:"Laporan RS/Kader/Masyarakat",    jenis:"Masyarakat" },
+  { nama:"drg. Lutfia",              jenis:"DPM" },
+  { nama:"Laporan RS/Masyarakat",    jenis:"Masyarakat" },
 ];
 
 const SKDR_JENIS_COLOR = {
@@ -1508,50 +1508,15 @@ async function syncOneRow(type, row) {
   const url = state.settings.sheetUrl;
   if (!url) return { ok: false, reason: "url-belum-diset" };
   try {
+    // action sesuai waspadane_sheets.gs
     const action = type === "kasus" ? "kasusSimpan" : "bencanaSimapan";
-    const record = type === "kasus" ? {
-      id               : row.id,
-      tanggal          : row.tanggal_lapor,
-      unitPelapor      : row.unit_pelapor,
-      desa             : row.desa,
-      namaPasien       : row.nama_pasien,
-      umur             : row.umur,
-      umurSatuan       : row.umur_satuan,
-      jenisKelamin     : row.jenis_kelamin,
-      alamat           : row.alamat_detail,
-      penyakit         : row.nama_penyakit,
-      statusKasus      : row.status_kasus,
-      keterangan       : row.keterangan,
-      gejalaTerpilih   : row.gejala,
-      riwayatImunisasi : row.riwayat_imunisasi,
-      statusSampel     : row.status_sampel,
-      jenisSampel      : row.jenis_sampel,
-      tanggalSampel    : row.tanggal_sampel,
-      keteranganSampel : row.keterangan_sampel,
-      waktuInput       : row.waktu_input
-    } : {
-      id                : row.id,
-      tanggal           : row.tanggal_kejadian,
-      unitPelapor       : row.unit_pelapor,
-      desa              : row.desa,
-      jenisBencana      : row.jenis_bencana,
-      korbanMeninggal   : row.korban_meninggal,
-      korbanLuka        : row.korban_luka,
-      korbanMengungsi   : row.korban_mengungsi,
-      kerusakanFaskes   : row.kerusakan_faskes,
-      kebutuhanMendesak : row.kebutuhan_mendesak,
-      keterangan        : row.keterangan,
-      waktuInput        : row.waktu_input
-    };
-    // Kirim via no-cors POST text/plain — satu-satunya cara yang BENAR untuk GAS dari browser
-    // no-cors: tidak bisa baca response, tapi data PASTI masuk ke GAS
+    // Kirim row langsung — field sudah snake_case sesuai HDR_KASUS/HDR_BENCANA di GAS
     await fetch(url, {
       method  : "POST",
       mode    : "no-cors",
       headers : { "Content-Type": "text/plain;charset=utf-8" },
-      body    : JSON.stringify({ action, record })
+      body    : JSON.stringify({ action, record: row })
     });
-    // Karena no-cors tidak bisa baca response, kita anggap berhasil jika tidak throw
     return { ok: true };
   } catch (e) {
     return { ok: false, reason: e.message };
@@ -1626,8 +1591,30 @@ async function fetchRemoteData() {
     const data = await res.json();
     if (!data || data.status !== "ok") return { ok: false, reason: (data && data.message) || "respons tidak valid" };
 
-    const remoteKasus = (data.kasus || []).map(r => Object.assign({}, r, { _synced: true }));
-    const remoteBencana = (data.bencana || []).map(r => Object.assign({}, r, { _synced: true }));
+    // Normalisasi data dari Sheets: pastikan field penting tidak undefined
+    const remoteKasus = (data.kasus || []).map(r => Object.assign({}, r, {
+      _synced      : true,
+      tanggal_lapor: r.tanggal_lapor || r.tanggal || '',
+      unit_pelapor : r.unit_pelapor  || r.unitPelapor || '',
+      nama_pasien  : r.nama_pasien   || r.namaPasien  || '',
+      nama_penyakit: r.nama_penyakit || r.penyakit    || '',
+      kode_penyakit: r.kode_penyakit || r.kodePenyakit|| '',
+      jenis_kelamin: r.jenis_kelamin || r.jenisKelamin|| '',
+      status_kasus : r.status_kasus  || r.statusKasus || '',
+      umur         : r.umur          || '',
+      umur_satuan  : r.umur_satuan   || r.umurSatuan  || 'Tahun',
+      desa         : r.desa          || ''
+    }));
+    const remoteBencana = (data.bencana || []).map(r => Object.assign({}, r, {
+      _synced          : true,
+      tanggal_kejadian : r.tanggal_kejadian || r.tanggal || '',
+      unit_pelapor     : r.unit_pelapor     || r.unitPelapor || '',
+      jenis_bencana    : r.jenis_bencana    || r.jenisBencana || '',
+      korban_meninggal : r.korban_meninggal || r.korbanMeninggal || 0,
+      korban_luka      : r.korban_luka      || r.korbanLuka || 0,
+      korban_mengungsi : r.korban_mengungsi || r.korbanMengungsi || 0,
+      desa             : r.desa             || ''
+    }));
     const remoteKasusIds = new Set(remoteKasus.map(r => r.id));
     const remoteBencanaIds = new Set(remoteBencana.map(r => r.id));
 

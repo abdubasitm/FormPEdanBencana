@@ -9,6 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="WASPADANE Sale">
 <title>WASPADANE — Puskesmas Sale</title>
+<meta name="version" content="v3.0-20260817">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
@@ -1785,7 +1786,10 @@ function showTab(tab) {
   document.querySelectorAll(".navbtn").forEach(b => b.classList.remove("active"));
   document.getElementById("panel-" + tab).classList.add("active");
   document.querySelector(`.navbtn[data-tab="${tab}"]`).classList.add("active");
-  if (tab === "dashboard") refreshDataAndRender(renderDashboard);
+  if (tab === "dashboard") {
+    // Delay kecil agar panel sudah visible sebelum Chart.js kalkulasi ukuran canvas
+    setTimeout(() => refreshDataAndRender(renderDashboard), 50);
+  }
   if (tab === "rekap") refreshDataAndRender(renderRekap);
   if (tab === "kelola-penyakit") renderKelolaPenyakit();
   if (tab === "skdr-mingguan") {
@@ -2063,6 +2067,16 @@ function renderDashboard() {
   const minggu = new Set(kasus.map(k => isoWeekKey(k.tanggal_lapor)));
   document.getElementById("statMingguAktif").textContent = minggu.size;
 
+  // Jika tidak ada data sama sekali, tampilkan pesan
+  if (!kasus || kasus.length === 0) {
+    ["chartTempat","chartWaktu","chartOrangUmur","chartOrangGender","chartPenyakit"].forEach(id => {
+      drawChart(id, "bar", [], [], id);
+    });
+    document.getElementById("alertList").innerHTML =
+      "<p style='color:var(--muted);font-size:13px;padding:8px 0'>Belum ada laporan kasus. Grafik akan muncul setelah ada data.</p>";
+    return;
+  }
+
   // ---- ANALISIS TEMPAT (per desa) ----
   const perDesa = {};
   kasus.forEach(k => perDesa[k.desa] = (perDesa[k.desa] || 0) + 1);
@@ -2129,19 +2143,38 @@ function isoWeekKey(dateStr) {
 
 const chartInstances = {};
 function drawChart(canvasId, type, labels, datasets, key) {
-  const ctx = document.getElementById(canvasId).getContext("2d");
-  if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
-  chartInstances[canvasId] = new Chart(ctx, {
-    type,
-    data: { labels, datasets },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      indexAxis: (canvasId === "chartPenyakit") ? "y" : "x",
-      plugins: { legend: { display: type === "doughnut" } },
-      scales: type === "doughnut" ? {} : { y: { beginAtZero: true, ticks: { precision: 0 } } }
+  try {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return; // canvas tidak ditemukan
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;    // context tidak tersedia
+    // Jika data kosong, tampilkan pesan "belum ada data"
+    if (!labels || labels.length === 0) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#aaa";
+      ctx.font = "13px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("Belum ada data", canvas.width / 2, canvas.height / 2);
+      return;
     }
-  });
+    if (chartInstances[canvasId]) {
+      chartInstances[canvasId].destroy();
+      chartInstances[canvasId] = null;
+    }
+    chartInstances[canvasId] = new Chart(ctx, {
+      type,
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: (canvasId === "chartPenyakit") ? "y" : "x",
+        plugins: { legend: { display: type === "doughnut" } },
+        scales: type === "doughnut" ? {} : { y: { beginAtZero: true, ticks: { precision: 0 } } }
+      }
+    });
+  } catch(e) {
+    console.error("drawChart error [" + canvasId + "]:", e);
+  }
 }
 
 /* ---------------------------- EXPORT CSV (cadangan lokal) ---------------------------- */

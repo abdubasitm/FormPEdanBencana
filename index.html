@@ -2,7 +2,12 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#0E4749">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WASPADANE Sale">
 <title>WASPADANE — Puskesmas Sale</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
@@ -162,6 +167,129 @@
     border-radius:8px;font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit;
   }
   .skdr-btn-nihil:hover{background:#FEF3C7;}
+
+  /* ============================================================
+     MOBILE RESPONSIVE — max-width 600px
+     ============================================================ */
+  @media(max-width:600px){
+
+    /* Header */
+    header.topbar{
+      padding:12px 14px;
+      flex-wrap:wrap;
+      gap:10px;
+    }
+    header.topbar .brand .mark{width:38px;height:38px;}
+    header.topbar h1{font-size:14px;}
+    header.topbar p{font-size:11px;}
+    header.topbar .pending{font-size:11px;padding:5px 10px;}
+
+    /* Navbar tabs — scroll horizontal */
+    nav.tabs{
+      padding:0 8px;
+      gap:0;
+      overflow-x:auto;
+      -webkit-overflow-scrolling:touch;
+      scrollbar-width:none;
+    }
+    nav.tabs::-webkit-scrollbar{display:none;}
+    .navbtn{
+      padding:10px 11px;
+      font-size:12px;
+      white-space:nowrap;
+    }
+
+    /* Main content */
+    main{padding:12px 10px 80px;}
+
+    /* Card */
+    .card{padding:14px 12px;margin-bottom:12px;}
+    .card h2{font-size:14px;}
+    .card .sub{font-size:12px;}
+
+    /* Grid — semua jadi 1 kolom */
+    .grid2,.grid3,.stat-row{
+      grid-template-columns:1fr !important;
+      gap:10px;
+    }
+    .stat-card .num{font-size:20px;}
+    .stat-card .lbl{font-size:11px;}
+
+    /* Form elements */
+    input[type=text],input[type=date],input[type=number],select,textarea{
+      font-size:16px; /* mencegah zoom otomatis iOS */
+      padding:10px 11px;
+    }
+    label.field span{font-size:12px;}
+
+    /* Tombol */
+    .btn{width:100%;text-align:center;padding:12px 16px;font-size:14px;}
+    .skdr-btn-nihil{width:100%;text-align:center;padding:12px 16px;font-size:14px;}
+    .actions-row{flex-direction:column;gap:8px;}
+    .actions-row .btn.secondary{width:100%;}
+
+    /* Tabel — scroll horizontal */
+    .table-wrap{border-radius:6px;}
+    table{font-size:11.5px;}
+    th,td{padding:6px 7px;}
+
+    /* SKDR form */
+    .skdr-row{flex-direction:column;gap:8px;}
+    .skdr-fg{min-width:unset !important;max-width:unset !important;width:100%;}
+    .skdr-subtabs{
+      overflow-x:auto;
+      -webkit-overflow-scrolling:touch;
+      scrollbar-width:none;
+      gap:0;
+    }
+    .skdr-subtabs::-webkit-scrollbar{display:none;}
+    .skdr-subtab-btn{
+      padding:9px 12px;
+      font-size:12px;
+      white-space:nowrap;
+    }
+    .skdr-ni{width:60px;font-size:12px;}
+    .skdr-ni-mati{width:60px;font-size:12px;}
+    .skdr-kb{font-size:11px;width:28px;display:inline-block;text-align:center;}
+
+    /* Stat cards di SKDR */
+    .stat-row[style*="grid-template-columns:repeat(3"]{
+      grid-template-columns:1fr 1fr !important;
+    }
+    .stat-row[style*="grid-template-columns:repeat(4"]{
+      grid-template-columns:1fr 1fr !important;
+    }
+
+    /* Gejala grid */
+    .gejala-grid{grid-template-columns:1fr !important;}
+    .gejala-item{font-size:12.5px;}
+
+    /* Chart */
+    .chart-box{height:200px;}
+
+    /* Alert item */
+    .alert-item{font-size:12px;}
+    .alert-count{font-size:14px;}
+
+    /* Toast */
+    .toast{font-size:12.5px;padding:10px 16px;bottom:12px;max-width:92%;}
+
+    /* Badge */
+    .badge{font-size:10px;}
+    .kategori{font-size:10px;}
+  }
+
+  /* Tablet 601–820px */
+  @media(min-width:601px) and (max-width:820px){
+    main{padding:16px 14px 60px;}
+    nav.tabs{padding:0 12px;}
+    .navbtn{font-size:13px;padding:11px 13px;}
+    .stat-row{grid-template-columns:1fr 1fr !important;}
+    .chart-box{height:220px;}
+    .skdr-row{flex-wrap:wrap;}
+    .skdr-fg{min-width:140px;}
+  }
+
 </style>
 </head>
 <body>
@@ -1880,6 +2008,11 @@ function renderKelolaPenyakit() {
 }
 
 /* ---------------------------- REKAP DATA ---------------------------- */
+
+function toInisial(nama) {
+  if (!nama || nama === '-') return '-';
+  return nama.trim().split(/\s+/).map(w => w[0].toUpperCase() + '.').join('');
+}
 function renderRekap() {
   const kBody = document.getElementById("rekapKasusBody");
   kBody.innerHTML = state.kasus.slice(0, 300).map(r => `
@@ -1888,7 +2021,7 @@ function renderRekap() {
       <td>${r.unit_pelapor}</td>
       <td>${r.desa}</td>
       <td><span class="badge">${r.kode_penyakit}</span> ${r.nama_penyakit}</td>
-      <td>${r.nama_pasien || "-"}</td>
+      <td>${toInisial(r.nama_pasien)}</td>
       <td>${r.umur ? r.umur + " " + (r.umur_satuan || "Tahun") : "-"}</td>
       <td>${r.jenis_kelamin || "-"}</td>
       <td>${r.status_kasus || "-"}</td>
